@@ -31,6 +31,62 @@ users = {
 
 current_user = None
 
+# SLA targets in hours by ticket priority
+SLA_HOURS = {
+    'High': 4,
+    'Medium': 24,
+    'Low': 72
+}
+
+
+def get_sla_hours(priority: str) -> int:
+    """Return SLA target in hours for a given priority."""
+    return SLA_HOURS.get(priority, 24)
+
+
+def get_ticket_age(ticket: Dict) -> datetime.timedelta:
+    """Return ticket age: now-created for open, closed-created for closed."""
+    created_at = ticket.get('created_at', datetime.datetime.now())
+    closed_at = ticket.get('closed_at')
+    if ticket.get('status') == 'Closed' and isinstance(closed_at, datetime.datetime):
+        return max(datetime.timedelta(0), closed_at - created_at)
+    return max(datetime.timedelta(0), datetime.datetime.now() - created_at)
+
+
+def format_duration(delta: datetime.timedelta) -> str:
+    """Format timedelta into compact human-readable duration."""
+    total_minutes = max(0, int(delta.total_seconds() // 60))
+    hours = total_minutes // 60
+    minutes = total_minutes % 60
+    if hours > 0:
+        return f"{hours}h {minutes}m"
+    return f"{minutes}m"
+
+
+def get_sla_status(ticket: Dict) -> str:
+    """Return SLA state: OK, NEAR (>=75%), BREACHED (>100%)."""
+    age_hours = get_ticket_age(ticket).total_seconds() / 3600
+    sla_hours = get_sla_hours(ticket.get('priority', 'Medium'))
+
+    if age_hours > sla_hours:
+        return 'BREACHED'
+    if age_hours >= 0.75 * sla_hours:
+        return 'NEAR'
+    return 'OK'
+
+
+def sla_badge(ticket: Dict) -> str:
+    """Return display badge like [YELLOW] 3h 0m / 4h SLA."""
+    status = get_sla_status(ticket)
+    age_txt = format_duration(get_ticket_age(ticket))
+    sla_txt = f"{get_sla_hours(ticket.get('priority', 'Medium'))}h SLA"
+
+    if status == 'BREACHED':
+        return f"[RED] {age_txt} / {sla_txt}"
+    if status == 'NEAR':
+        return f"[YELLOW] {age_txt} / {sla_txt}"
+    return f"[OK] {age_txt} / {sla_txt}"
+
 
 def authenticate_user(username: str, password: str) -> Optional[Dict]:
     """Check whether username/password are valid"""
@@ -93,7 +149,8 @@ def initialize_starter_data():
             'priority': 'High',
             'category': 'Network',
             'escalation_level': 1,
-            'escalation_reason': ''
+            'escalation_reason': '',
+            'closed_at': None
         },
         {
             'id': 2,
@@ -106,7 +163,8 @@ def initialize_starter_data():
             'priority': 'Medium',
             'category': 'Hardware',
             'escalation_level': 1,
-            'escalation_reason': ''
+            'escalation_reason': '',
+            'closed_at': None
         },
         {
             'id': 3,
@@ -119,28 +177,33 @@ def initialize_starter_data():
             'priority': 'Low',
             'category': 'Software',
             'escalation_level': 1,
-            'escalation_reason': ''
+            'escalation_reason': '',
+            'closed_at': datetime.datetime.now() - datetime.timedelta(days=2, hours=20)
         }
     ]
     ticket_counter = 4  # Next ticket will be ID 4
 
 def save_data() -> None: 
     """Save tickets and ticket counter to JSON file""" 
-    try: 
-        serializable_tickets = [] 
-        for ticket in tickets: ticket_copy = ticket.copy() 
+    try:
+        serializable_tickets = []
+        for ticket in tickets:
+            ticket_copy = ticket.copy()
 
-        # Convert datetime to string for JSON 
-        if isinstance(ticket_copy.get('created_at'), datetime.datetime): 
-            ticket_copy['created_at'] = ticket_copy['created_at'].isoformat() 
-        serializable_tickets.append(ticket_copy) 
+            # Convert datetime to string for JSON
+            if isinstance(ticket_copy.get('created_at'), datetime.datetime):
+                ticket_copy['created_at'] = ticket_copy['created_at'].isoformat()
+            if isinstance(ticket_copy.get('closed_at'), datetime.datetime):
+                ticket_copy['closed_at'] = ticket_copy['closed_at'].isoformat()
 
-        data = { "ticket_counter": ticket_counter, "tickets": serializable_tickets } 
-        
-        with open(DATA_FILE, "w", encoding="utf-8") as file: 
-            json.dump(data, file, indent=4, ensure_ascii=False) 
+            serializable_tickets.append(ticket_copy)
 
-    except Exception as e: 
+        data = {"ticket_counter": ticket_counter, "tickets": serializable_tickets}
+
+        with open(DATA_FILE, "w", encoding="utf-8") as file:
+            json.dump(data, file, indent=4, ensure_ascii=False)
+
+    except Exception as e:
         print(f"Error saving data: {e}")
 
 def load_data() -> bool:
@@ -157,10 +220,14 @@ def load_data() -> bool:
         loaded_tickets = data.get("tickets", [])
         ticket_counter = data.get("ticket_counter", 1)
 
-        # Convert created_at back to datetime
+        # Convert created_at / closed_at back to datetime
         for ticket in loaded_tickets:
             if 'created_at' in ticket and isinstance(ticket['created_at'], str):
                 ticket['created_at'] = datetime.datetime.fromisoformat(ticket['created_at'])
+            if 'closed_at' in ticket and isinstance(ticket['closed_at'], str):
+                ticket['closed_at'] = datetime.datetime.fromisoformat(ticket['closed_at'])
+            if 'closed_at' not in ticket:
+                ticket['closed_at'] = None
 
         tickets = loaded_tickets
         return True
@@ -219,7 +286,8 @@ def create_ticket() -> None:
         'priority': priority,
         'category': category, 
         'escalation_level': 1,
-        'escalation_reason': ''
+        'escalation_reason': '',
+        'closed_at': None
     }
 
     tickets.append(new_ticket)
@@ -303,9 +371,9 @@ def view_tickets(filter_status: Optional[str] = None) -> None:
             break
 
         print(
-            f"\n{'ID':<5} {'Title':<25} {'Category':<12} {'Status':<15} {'Priority':<10} {'Esc':<5} {'Assigned To':<20} {'Created':<12}"
+            f"\n{'ID':<5} {'Title':<25} {'Category':<12} {'Status':<15} {'Priority':<10} {'SLA':<30} {'Esc':<5} {'Assigned To':<20} {'Created':<12}"
         )
-        print("-" * 100)
+        print("-" * 138)
 
         for ticket in page:
             created_str = ticket['created_at'].strftime('%Y-%m-%d')
@@ -315,7 +383,7 @@ def view_tickets(filter_status: Optional[str] = None) -> None:
 
             print(
                 f"{ticket['id']:<5} {title_truncated:<25} {ticket['category']:<12} {ticket['status']:<15} "
-                f"{priority:<10} {escalation:<5} {ticket['assigned_to']:<20} {created_str:<12}"
+                f"{priority:<10} {sla_badge(ticket):<30} {escalation:<5} {ticket['assigned_to']:<20} {created_str:<12}"
             )
 
         shown_total += len(page)
@@ -345,6 +413,7 @@ def view_ticket_details(ticket_id: int) -> None:
     print(f"Priority: {ticket.get('priority', 'Medium')}")
     print(f"Assigned To: {ticket['assigned_to']}")
     print(f"Created: {ticket['created_at'].strftime('%Y-%m-%d %H:%M')}")
+    print(f"SLA: {sla_badge(ticket)}")
     print(f"\nDescription:\n{ticket['description']}")
     print(f"\nCategory: {ticket.get('category', 'Other')}")
     print(f"Escalation Level: {ticket.get('escalation_level', 1)}")
@@ -421,6 +490,7 @@ def close_ticket(ticket_id: int) -> None:
         return
 
     ticket['status'] = 'Closed'
+    ticket['closed_at'] = datetime.datetime.now()
     ticket['comments'].append("Ticket closed")
 
     print(f"\n✓ Ticket #{ticket_id} closed successfully")
@@ -441,8 +511,11 @@ def bulk_close_tickets(ticket_ids: List[int]) -> None:
             continue
 
         ticket['status'] = 'Closed'
+        ticket['closed_at'] = datetime.datetime.now()
         ticket['comments'].append("Ticket closed (bulk)")
         closed_count += 1
+
+    save_data()
 
     print(f"\n✓ {closed_count} tickets closed successfully")
 
@@ -565,6 +638,65 @@ def export_tickets_to_csv(filename: str = "tickets_export.csv") -> None:
     except Exception as e:
         print(f"Error exporting tickets: {e}")
 
+def render_bar(label: str, value: int, scale: int = 1) -> str:
+    """Simple text bar for dashboard view."""
+    length = max(0, value // max(1, scale))
+    return f"{label:<20} | {'#' * length} ({value})"
+
+
+def view_dashboard() -> None:
+    """Display key ticket statistics dashboard."""
+    print("\n=== Dashboard ===")
+    now = datetime.datetime.now()
+    start_today = datetime.datetime(now.year, now.month, now.day)
+    start_week = start_today - datetime.timedelta(days=now.weekday())
+
+    total_tickets = len(tickets)
+    open_tickets = sum(1 for t in tickets if t.get('status') != 'Closed')
+
+    closed_today = sum(
+        1 for t in tickets
+        if t.get('status') == 'Closed' and t.get('closed_at') and t['closed_at'] >= start_today
+    )
+    closed_week = sum(
+        1 for t in tickets
+        if t.get('status') == 'Closed' and t.get('closed_at') and t['closed_at'] >= start_week
+    )
+
+    closed_with_time = [
+        t for t in tickets
+        if t.get('status') == 'Closed' and t.get('closed_at') and t.get('created_at')
+    ]
+    if closed_with_time:
+        avg_seconds = sum((t['closed_at'] - t['created_at']).total_seconds() for t in closed_with_time) / len(closed_with_time)
+        avg_close = format_duration(datetime.timedelta(seconds=avg_seconds))
+    else:
+        avg_close = 'N/A'
+
+    by_category: Dict[str, int] = {}
+    for t in tickets:
+        category = t.get('category', 'Other')
+        by_category[category] = by_category.get(category, 0) + 1
+
+    by_staff: Dict[str, int] = {}
+    for t in tickets:
+        staff = t.get('assigned_to', 'Unassigned')
+        by_staff[staff] = by_staff.get(staff, 0) + 1
+
+    print(f"Total tickets: {total_tickets}")
+    print(f"Open tickets: {open_tickets}")
+    print(f"Tickets closed today: {closed_today}")
+    print(f"Tickets closed this week: {closed_week}")
+    print(f"Average time to close: {avg_close}")
+
+    print("\nTickets by category:")
+    for cat, count in sorted(by_category.items(), key=lambda x: x[0]):
+        print(render_bar(cat, count))
+
+    print("\nTickets by assigned staff:")
+    for staff, count in sorted(by_staff.items(), key=lambda x: x[0]):
+        print(render_bar(staff, count))
+
 def main_menu() -> None:
     """Main menu loop"""
     print("\n" + "=" * 60)
@@ -587,6 +719,7 @@ def main_menu() -> None:
         print("9. Export tickets to CSV")
         print("10. Escalate ticket")
         print("11. De-escalate ticket")
+        print("12. View dashboard")
         print("0. Exit")
 
         choice = input("\nSelect option: ").strip()
@@ -664,6 +797,9 @@ def main_menu() -> None:
                 de_escalate_ticket(ticket_id)
             except ValueError:
                 print("Error: Invalid ticket ID")
+
+        elif choice == '12':
+            view_dashboard()
 
         elif choice == '0':
             print("\n👋 Thank you for using Helpdesk System!")
