@@ -85,7 +85,7 @@ def initialize_starter_data():
             'title': 'Cannot access shared drive',
             'description': 'User reports unable to connect to //fileserver/shared. Getting "access denied" error.',
             'status': 'Open',
-            'assigned_to': 'Support Team',
+            'assigned_to': 'Unassigned',
             'created_at': datetime.datetime.now() - datetime.timedelta(days=2),
             'comments': ['Initial report received from user@example.com'], 
             'priority': 'High',
@@ -96,7 +96,7 @@ def initialize_starter_data():
             'title': 'Printer not working in Room 301',
             'description': 'HP LaserJet in Room 301 showing error code 49. Paper jams frequently.',
             'status': 'In Progress',
-            'assigned_to': 'Alice Johnson',
+            'assigned_to': 'Unassigned',
             'created_at': datetime.datetime.now() - datetime.timedelta(days=1),
             'comments': ['Ticket assigned to Alice', 'Alice: Checked printer, ordered replacement parts'],
             'priority': 'Medium',
@@ -107,7 +107,7 @@ def initialize_starter_data():
             'title': 'Email not syncing on mobile device',
             'description': 'User cannot receive emails on iPhone. Webmail works fine.',
             'status': 'Closed',
-            'assigned_to': 'Bob Smith',
+            'assigned_to': 'Unassigned',
             'created_at': datetime.datetime.now() - datetime.timedelta(days=3),
             'comments': ['Bob: Reset mobile sync settings', 'Bob: Issue resolved, user confirmed emails working'],
             'priority': 'Low',
@@ -267,6 +267,11 @@ def assign_ticket(ticket_id: int, staff_name: str) -> None:
         print(f"Error: Ticket #{ticket_id} not found")
         return
 
+    # Check if ticket is closed
+    if ticket['status'] == 'Closed':
+        print("Error: Cannot assign a closed ticket")
+        return
+
     # Check if staff member exists
     if staff_name not in staff_members:
         print("Error: Staff member does not exist")
@@ -278,14 +283,11 @@ def assign_ticket(ticket_id: int, staff_name: str) -> None:
         print(f"Ticket already assigned to {staff_name}")
         return
 
-    # Check if ticket is closed
-    if ticket['status'] == 'Closed':
-        print("Error: Cannot assign a closed ticket")
-        return
-
+    # Assign ticket
     ticket['assigned_to'] = staff_name
     ticket['comments'].append(f"Ticket assigned to {staff_name}")
 
+    # Auto-change status if it was Open
     if ticket['status'] == 'Open':
         ticket['status'] = 'In Progress'
 
@@ -470,7 +472,7 @@ def main_menu() -> None:
                     staff_name = staff_members[staff_choice - 1]
                 except (ValueError, IndexError):
                     print("Error: Invalid selection")
-                continue
+                    continue
 
                 assign_ticket(ticket_id, staff_name)
 
