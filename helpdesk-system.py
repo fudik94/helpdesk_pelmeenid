@@ -11,9 +11,11 @@ Students will apply Kanban practices to manage continuous flow of work items.
 import datetime
 from typing import List, Dict, Optional
 import csv
+import json, os
 
 # Global data structures
 tickets: List[Dict] = []
+DATA_FILE = "tickets.json"
 ticket_counter = 1
 categories = ['Hardware', 'Software', 'Network', 'Other']
 staff_members = ['Alice Johnson', 'Bob Smith', 'Charlie Lee', 'Dana White']
@@ -116,6 +118,50 @@ def initialize_starter_data():
     ]
     ticket_counter = 4  # Next ticket will be ID 4
 
+def save_data() -> None: 
+    """Save tickets and ticket counter to JSON file""" 
+    try: 
+        serializable_tickets = [] 
+        for ticket in tickets: ticket_copy = ticket.copy() 
+
+        # Convert datetime to string for JSON 
+        if isinstance(ticket_copy.get('created_at'), datetime.datetime): 
+            ticket_copy['created_at'] = ticket_copy['created_at'].isoformat() 
+        serializable_tickets.append(ticket_copy) 
+
+        data = { "ticket_counter": ticket_counter, "tickets": serializable_tickets } 
+        
+        with open(DATA_FILE, "w", encoding="utf-8") as file: 
+            json.dump(data, file, indent=4, ensure_ascii=False) 
+
+    except Exception as e: 
+        print(f"Error saving data: {e}")
+
+def load_data() -> bool:
+    """Load tickets and ticket counter from JSON file"""
+    global tickets, ticket_counter
+
+    if not os.path.exists(DATA_FILE):
+        return False
+
+    try:
+        with open(DATA_FILE, "r", encoding="utf-8") as file:
+            data = json.load(file)
+
+        loaded_tickets = data.get("tickets", [])
+        ticket_counter = data.get("ticket_counter", 1)
+
+        # Convert created_at back to datetime
+        for ticket in loaded_tickets:
+            if 'created_at' in ticket and isinstance(ticket['created_at'], str):
+                ticket['created_at'] = datetime.datetime.fromisoformat(ticket['created_at'])
+
+        tickets = loaded_tickets
+        return True
+
+    except Exception as e:
+        print(f"Error loading data: {e}")
+        return False
 
 def create_ticket() -> None:
     """Create a new support ticket"""
@@ -170,6 +216,7 @@ def create_ticket() -> None:
 
     tickets.append(new_ticket)
     print(f"\n✓ Ticket #{ticket_counter} created successfully")
+    save_data()  # Save after creating a new ticket
     ticket_counter += 1
 
 
@@ -292,7 +339,7 @@ def assign_ticket(ticket_id: int, staff_name: str) -> None:
         ticket['status'] = 'In Progress'
 
     print(f"\n✓ Ticket #{ticket_id} assigned to {staff_name}")
-
+    save_data()  # Save after assigning a ticket
 
 def add_comment(ticket_id: int, comment: str) -> None:
     ticket = find_ticket_by_id(ticket_id)
@@ -309,7 +356,7 @@ def add_comment(ticket_id: int, comment: str) -> None:
     ticket['comments'].append(f"[{timestamp}] {comment}")
 
     print(f"\n✓ Comment added to ticket #{ticket_id}")
-
+    save_data()  # Save after adding a comment
 
 def close_ticket(ticket_id: int) -> None:
     ticket = find_ticket_by_id(ticket_id)
@@ -326,6 +373,7 @@ def close_ticket(ticket_id: int) -> None:
     ticket['comments'].append("Ticket closed")
 
     print(f"\n✓ Ticket #{ticket_id} closed successfully")
+    save_data()  # Save after closing a ticket
 
 def search_tickets(query: str) -> None:
     """
@@ -512,8 +560,10 @@ def main_menu() -> None:
 
 
 if __name__ == "__main__":
-    # Initialize with starter data
-    initialize_starter_data()
+    # Load saved data if available, otherwise use starter data
+    if not load_data():
+        initialize_starter_data()
+        save_data()
 
     # Run main menu
     if login():
