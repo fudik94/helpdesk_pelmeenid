@@ -16,6 +16,61 @@ tickets: List[Dict] = []
 ticket_counter = 1
 categories = ['Hardware', 'Software', 'Network', 'Other']
 
+# Simple user store for login simulation
+users = {
+    "admin": {"password": "admin123", "role": "Admin"},
+    "suzanna": {"password": "helpdesk1", "role": "Support"},
+    "yulia": {"password": "helpdesk2", "role": "Support"},
+    "fuad": {"password": "helpdesk3", "role": "Support"},
+    "ira": {"password": "helpdesk4", "role": "Support"}
+}
+
+current_user = None
+
+def authenticate_user(username: str, password: str) -> Optional[Dict]:
+    """Check whether username/password are valid"""
+    username = username.strip().lower()
+    password = password.strip()
+
+    if not username or not password:
+        return None
+
+    user = users.get(username)
+    if not user:
+        return None
+
+    if user["password"] != password:
+        return None
+
+    return {"username": username, "role": user["role"]}
+
+def login() -> bool:
+    """Prompt user to log in before accessing the system"""
+    global current_user
+
+    print("\n" + "=" * 60)
+    print("  HELPDESK SYSTEM LOGIN")
+    print("=" * 60)
+
+    attempts = 3
+
+    while attempts > 0:
+        username = input("Username: ").strip()
+        password = input("Password: ").strip()
+
+        user = authenticate_user(username, password)
+
+        if user:
+            current_user = user
+            print(f"\n✓ Login successful. Welcome, {current_user['username']} ({current_user['role']})")
+            return True
+
+        attempts -= 1
+        print(f"Error: Invalid username or password. Attempts left: {attempts}")
+
+    print("\nAccess denied. Too many failed login attempts.")
+    return False
+
 # Starter tickets (demonstrates existing system with some data)
 def initialize_starter_data():
     """Initialize system with 3 existing tickets to demonstrate 'existing codebase' concept"""
@@ -282,6 +337,7 @@ def main_menu() -> None:
     print("=" * 60)
     print("  Part V Kanban Practice - Existing Codebase Scenario")
     print("=" * 60)
+    print(f"Logged in as: {current_user['username']} ({current_user['role']})")
 
     while True:
         print("\n--- Main Menu ---")
@@ -358,4 +414,5 @@ if __name__ == "__main__":
     initialize_starter_data()
 
     # Run main menu
-    main_menu()
+    if login():
+        main_menu()
