@@ -132,10 +132,12 @@ def create_ticket() -> None:
         print("Error: Description cannot be empty")
         return
     
-    priority = input("Priority (Low/Medium/High) [default: Medium]: ").strip().title()
+    priority = input("Priority (Low/Medium/High) [default: Medium]: ")
 
     if not priority:
         priority = "Medium"
+
+    priority = priority.strip().title()
 
     if priority not in ["Low", "Medium", "High"]:
         print("Invalid priority. Defaulting to Medium.")
@@ -180,29 +182,57 @@ def view_tickets(filter_status: Optional[str] = None) -> None:
     """
     print("\n=== Ticket List ===")
 
-    # Filter tickets by status if specified
-    filtered_tickets = tickets
+    # Normalize status values to avoid mismatches caused by case/extra spaces.
+    normalize = lambda s: str(s).strip().lower()
+
+    ticket_stream = (t for t in tickets)
     if filter_status:
-        filtered_tickets = [t for t in tickets if t['status'] == filter_status]
+        target_status = normalize(filter_status)
+        ticket_stream = (t for t in ticket_stream if normalize(t.get('status', '')) == target_status)
         print(f"Filter: {filter_status} tickets only")
 
-    if not filtered_tickets:
-        print("No tickets found")
-        return
+    page_size = 20
+    page_number = 1
+    shown_total = 0
 
-    # Display tickets in table format
-    print(f"\n{'ID':<5} {'Title':<25} {'Category':<12} {'Status':<15} {'Assigned To':<20} {'Created':<12}")
-    print("-" * 85)
+    while True:
+        page = []
+        for _ in range(page_size):
+            try:
+                page.append(next(ticket_stream))
+            except StopIteration:
+                break
 
-    for ticket in filtered_tickets:
-        created_str = ticket['created_at'].strftime('%Y-%m-%d')
-        title_truncated = ticket['title'][:28] + '..' if len(ticket['title']) > 30 else ticket['title']
-        priority = ticket.get('priority', 'Medium')
+        if not page:
+            if shown_total == 0:
+                print("No tickets found")
+            break
 
-        print(f"{ticket['id']:<5} {title_truncated:<25} {ticket['category']:<12} {ticket['status']:<15} "
-            f"{ticket['assigned_to']:<20} {created_str:<12}")
+        print(
+            f"\n{'ID':<5} {'Title':<25} {'Category':<12} {'Status':<15} {'Assigned To':<20} {'Created':<12}"
+        )
+        print("-" * 85)
 
-    print(f"\nTotal: {len(filtered_tickets)} tickets")
+        for ticket in page:
+            created_str = ticket['created_at'].strftime('%Y-%m-%d')
+            title_truncated = ticket['title'][:28] + '..' if len(ticket['title']) > 30 else ticket['title']
+
+            print(
+                f"{ticket['id']:<5} {title_truncated:<25} {ticket['category']:<12} {ticket['status']:<15} "
+                f"{ticket['assigned_to']:<20} {created_str:<12}"
+            )
+
+        shown_total += len(page)
+
+        if len(page) < page_size:
+            break
+
+        prompt = f"\nPage {page_number} shown ({shown_total} tickets). Type 'Next' for more or press Enter to stop: "
+        if input(prompt).strip().lower() != 'next':
+            break
+        page_number += 1
+
+    print(f"\nTotal: {shown_total} tickets")
 
 
 def view_ticket_details(ticket_id: int) -> None:
@@ -313,40 +343,8 @@ def search_tickets(query: str) -> None:
         if ticket:
             view_ticket_details(ticket_id)
             return
-<<<<<<< HEAD
         else:
             print(f"No ticket found with ID #{ticket_id}")
-=======
-    except ValueError:
-        pass
-
-    matching_tickets = []
-
-    # --- Date search ---
-    try:
-        if "last 7 days" in query_lower:
-            cutoff = now - datetime.timedelta(days=7)
-            matching_tickets = [t for t in tickets if t['created_at'] >= cutoff]
-
-        elif "last 30 days" in query_lower:
-            cutoff = now - datetime.timedelta(days=30)
-            matching_tickets = [t for t in tickets if t['created_at'] >= cutoff]
-
-
-        elif " to " in query_lower:
-            parts = query_lower.split("to")
-            start_date = datetime.datetime.strptime(parts[0].strip(), "%Y-%m-%d")
-            end_date = datetime.datetime.strptime(parts[1].strip(), "%Y-%m-%d")
-
-            matching_tickets = [
-                t for t in tickets
-                if start_date <= t['created_at'] <= end_date
-            ]
-
-        # якщо це date search і нічого не знайдено
-        if ("last" in query_lower or "to" in query_lower) and not matching_tickets:
-            print("No tickets found for given date range")
->>>>>>> 224b94be8e02545eeb15ae6467dbe67216df422d
             return
 
     # Search by title/description (case-insensitive)
