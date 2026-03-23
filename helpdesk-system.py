@@ -233,17 +233,24 @@ def view_ticket_details(ticket_id: int) -> None:
 
 def assign_ticket(ticket_id: int, staff_name: str) -> None:
     ticket = find_ticket_by_id(ticket_id)
-
     if not ticket:
         print(f"Error: Ticket #{ticket_id} not found")
         return
 
-    if not staff_name.strip():
-        print("Error: Staff name cannot be empty")
+    # Check if staff member exists
+    if staff_name not in staff_members:
+        print("Error: Staff member does not exist")
+        print("Available staff:", ", ".join(staff_members))
         return
 
-    if staff_name not in users:
-        print("Error: Invalid staff name")
+    # Check if ticket is already assigned to the same staff member
+    if ticket['assigned_to'] == staff_name:
+        print(f"Ticket already assigned to {staff_name}")
+        return
+
+    # Check if ticket is closed
+    if ticket['status'] == 'Closed':
+        print("Error: Cannot assign a closed ticket")
         return
 
     ticket['assigned_to'] = staff_name
@@ -449,11 +456,20 @@ def main_menu() -> None:
         elif choice == '5':
             try:
                 ticket_id = int(input("Enter ticket ID: "))
-                staff_name = input("Assign to (staff name): ").strip()
-                if staff_name:
-                    assign_ticket(ticket_id, staff_name)
-                else:
-                    print("Error: Staff name cannot be empty")
+
+                print("\nAvailable staff:")
+                for i, s in enumerate(STAFF, 1):
+                    print(f"{i}. {s}")
+
+                try:
+                    staff_choice = int(input("Select staff (number): "))
+                    staff_name = STAFF[staff_choice - 1]
+                except (ValueError, IndexError):
+                    print("Error: Invalid selection")
+                continue
+
+                assign_ticket(ticket_id, staff_name)
+
             except ValueError:
                 print("Error: Invalid ticket ID")
 
