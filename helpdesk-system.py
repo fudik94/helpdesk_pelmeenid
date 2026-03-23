@@ -83,7 +83,8 @@ def initialize_starter_data():
             'status': 'Open',
             'assigned_to': 'Support Team',
             'created_at': datetime.datetime.now() - datetime.timedelta(days=2),
-            'comments': ['Initial report received from user@example.com']
+            'comments': ['Initial report received from user@example.com'],
+            'priority': 'High'
         },
         {
             'id': 2,
@@ -92,7 +93,8 @@ def initialize_starter_data():
             'status': 'In Progress',
             'assigned_to': 'Alice Johnson',
             'created_at': datetime.datetime.now() - datetime.timedelta(days=1),
-            'comments': ['Ticket assigned to Alice', 'Alice: Checked printer, ordered replacement parts']
+            'comments': ['Ticket assigned to Alice', 'Alice: Checked printer, ordered replacement parts'],
+            'priority': 'Medium'
         },
         {
             'id': 3,
@@ -101,7 +103,8 @@ def initialize_starter_data():
             'status': 'Closed',
             'assigned_to': 'Bob Smith',
             'created_at': datetime.datetime.now() - datetime.timedelta(days=3),
-            'comments': ['Bob: Reset mobile sync settings', 'Bob: Issue resolved, user confirmed emails working']
+            'comments': ['Bob: Reset mobile sync settings', 'Bob: Issue resolved, user confirmed emails working'],
+            'priority': 'Low'
         }
     ]
     ticket_counter = 4  # Next ticket will be ID 4
@@ -121,6 +124,14 @@ def create_ticket() -> None:
     if not description:
         print("Error: Description cannot be empty")
         return
+    
+    priority = input("Priority (Low/Medium/High) [default: Medium]: ").strip().title()
+    if not priority:
+        priority = "Medium"
+
+    if priority not in ["Low", "Medium", "High"]:
+        print("Error: Invalid priority. Setting to Medium.")
+        priority = "Medium"
 
     # Create new ticket
     new_ticket = {
@@ -130,7 +141,8 @@ def create_ticket() -> None:
         'status': 'Open',
         'assigned_to': 'Unassigned',
         'created_at': datetime.datetime.now(),
-        'comments': []
+        'comments': [],
+        'priority': priority
     }
 
     tickets.append(new_ticket)
@@ -158,15 +170,16 @@ def view_tickets(filter_status: Optional[str] = None) -> None:
         return
 
     # Display tickets in table format
-    print(f"\n{'ID':<5} {'Title':<30} {'Status':<15} {'Assigned To':<20} {'Created':<12}")
+    print(f"\n{'ID':<5} {'Title':<30} {'Status':<15} {'Priority':<10} {'Assigned To':<20} {'Created':<12}")
     print("-" * 85)
 
     for ticket in filtered_tickets:
         created_str = ticket['created_at'].strftime('%Y-%m-%d')
         title_truncated = ticket['title'][:28] + '..' if len(ticket['title']) > 30 else ticket['title']
+        priority = ticket.get('priority', 'Medium')
 
         print(f"{ticket['id']:<5} {title_truncated:<30} {ticket['status']:<15} "
-              f"{ticket['assigned_to']:<20} {created_str:<12}")
+              f"{priority:<10} {ticket['assigned_to']:<20} {created_str:<12}")
 
     print(f"\nTotal: {len(filtered_tickets)} tickets")
 
@@ -182,6 +195,7 @@ def view_ticket_details(ticket_id: int) -> None:
     print(f"Ticket #{ticket['id']}: {ticket['title']}")
     print("=" * 60)
     print(f"Status: {ticket['status']}")
+    print(f"Priority: {ticket.get('priority', 'Medium')}")
     print(f"Assigned To: {ticket['assigned_to']}")
     print(f"Created: {ticket['created_at'].strftime('%Y-%m-%d %H:%M')}")
     print(f"\nDescription:\n{ticket['description']}")
