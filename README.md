@@ -18,15 +18,16 @@ Terminal-based service desk ticket management system demonstrating an "existing 
 - 📊 **Dashboard**: Statistics on tickets, categories, and staff workload
 - 📥 **CSV Export**: Generate reports for external analysis
 - 🔐 **Role-based Access**: Admin and Support user roles
-
 ---
-Pre-configured Users:
-user_name/ password
-admin    / admin123     
-suzanna  / helpdesk1    
-yulia    / helpdesk2    
-fuad     / helpdesk3    
-ira      / helpdesk4    
+## 👥 Pre-configured Users
+
+| User Name | Password    |
+|-----------|------------|
+| admin     | admin123    |
+| suzanna   | helpdesk1   |
+| yulia    | helpdesk2   |
+| fuad     | helpdesk3   |
+| ira      | helpdesk4   |
 
 
 ---
