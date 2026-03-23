@@ -458,12 +458,12 @@ def main_menu() -> None:
                 ticket_id = int(input("Enter ticket ID: "))
 
                 print("\nAvailable staff:")
-                for i, s in enumerate(STAFF, 1):
+                for i, s in enumerate(staff_members, 1):
                     print(f"{i}. {s}")
 
                 try:
                     staff_choice = int(input("Select staff (number): "))
-                    staff_name = STAFF[staff_choice - 1]
+                    staff_name = staff_members[staff_choice - 1]
                 except (ValueError, IndexError):
                     print("Error: Invalid selection")
                 continue
