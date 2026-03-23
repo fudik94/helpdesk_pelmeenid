@@ -14,6 +14,7 @@ from typing import List, Dict, Optional
 # Global data structures
 tickets: List[Dict] = []
 ticket_counter = 1
+categories = ['Hardware', 'Software', 'Network', 'Other']
 
 # Simple user store for login simulation
 users = {
@@ -83,7 +84,7 @@ def initialize_starter_data():
             'status': 'Open',
             'assigned_to': 'Support Team',
             'created_at': datetime.datetime.now() - datetime.timedelta(days=2),
-            'comments': ['Initial report received from user@example.com'],
+            'comments': ['Initial report received from user@example.com'], 
             'priority': 'High'
         },
         {
@@ -126,11 +127,12 @@ def create_ticket() -> None:
         return
     
     priority = input("Priority (Low/Medium/High) [default: Medium]: ").strip().title()
+
     if not priority:
         priority = "Medium"
 
     if priority not in ["Low", "Medium", "High"]:
-        print("Error: Invalid priority. Setting to Medium.")
+        print("Invalid priority. Defaulting to Medium.")
         priority = "Medium"
 
     # Create new ticket
@@ -199,6 +201,7 @@ def view_ticket_details(ticket_id: int) -> None:
     print(f"Assigned To: {ticket['assigned_to']}")
     print(f"Created: {ticket['created_at'].strftime('%Y-%m-%d %H:%M')}")
     print(f"\nDescription:\n{ticket['description']}")
+    print(f"\nCategory: {ticket['category']}")
 
     if ticket['comments']:
         print(f"\nComments ({len(ticket['comments'])}):")
