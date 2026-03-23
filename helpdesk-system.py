@@ -202,7 +202,7 @@ def view_ticket_details(ticket_id: int) -> None:
     print(f"Assigned To: {ticket['assigned_to']}")
     print(f"Created: {ticket['created_at'].strftime('%Y-%m-%d %H:%M')}")
     print(f"\nDescription:\n{ticket['description']}")
-    print(f"\nCategory: {ticket['category']}")
+    print(f"\nCategory: {ticket.get('category', 'Other')}")
 
     if ticket['comments']:
         print(f"\nComments ({len(ticket['comments'])}):")
@@ -222,6 +222,10 @@ def assign_ticket(ticket_id: int, staff_name: str) -> None:
 
     if not staff_name.strip():
         print("Error: Staff name cannot be empty")
+        return
+
+    if staff_name not in users:
+        print("Error: Invalid staff name")
         return
 
     ticket['assigned_to'] = staff_name
@@ -294,7 +298,8 @@ def search_tickets(query: str) -> None:
             cutoff = now - datetime.timedelta(days=30)
             matching_tickets = [t for t in tickets if t['created_at'] >= cutoff]
 
-        elif "to" in query_lower:
+
+        elif " to " in query_lower:
             parts = query_lower.split("to")
             start_date = datetime.datetime.strptime(parts[0].strip(), "%Y-%m-%d")
             end_date = datetime.datetime.strptime(parts[1].strip(), "%Y-%m-%d")
