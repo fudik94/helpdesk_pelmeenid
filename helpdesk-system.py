@@ -10,6 +10,7 @@ Students will apply Kanban practices to manage continuous flow of work items.
 
 import datetime
 from typing import List, Dict, Optional
+import csv
 
 # Global data structures
 tickets: List[Dict] = []
@@ -202,7 +203,7 @@ def view_ticket_details(ticket_id: int) -> None:
     print(f"Assigned To: {ticket['assigned_to']}")
     print(f"Created: {ticket['created_at'].strftime('%Y-%m-%d %H:%M')}")
     print(f"\nDescription:\n{ticket['description']}")
-    print(f"\nCategory: {ticket['category']}")
+    print(f"\nCategory: {ticket.get('category', 'Other')}")
 
     if ticket['comments']:
         print(f"\nComments ({len(ticket['comments'])}):")
@@ -349,6 +350,39 @@ def find_ticket_by_id(ticket_id: int) -> Optional[Dict]:
             return ticket
     return None
 
+def export_tickets_to_csv(filename: str = "tickets_export.csv") -> None:
+    """Export all tickets to CSV file"""
+    try:
+        with open(filename, mode="w", newline="", encoding="utf-8") as file:
+            writer = csv.writer(file)
+
+            # Header row
+            writer.writerow([
+                "ID",
+                "Title",
+                "Status",
+                "Assigned To",
+                "Created Date",
+                "Category",
+                "Priority"
+            ])
+
+            # Ticket rows
+            for ticket in tickets:
+                writer.writerow([
+                    ticket.get('id', ''),
+                    ticket.get('title', ''),
+                    ticket.get('status', ''),
+                    ticket.get('assigned_to', ''),
+                    ticket.get('created_at').strftime('%Y-%m-%d %H:%M') if ticket.get('created_at') else '',
+                    ticket.get('category', 'Other'),
+                    ticket.get('priority', 'Medium')
+                ])
+
+        print(f"\n✓ Tickets successfully exported to {filename}")
+
+    except Exception as e:
+        print(f"Error exporting tickets: {e}")
 
 def main_menu() -> None:
     """Main menu loop"""
@@ -369,6 +403,7 @@ def main_menu() -> None:
         print("6. Add comment to ticket")
         print("7. Close ticket")
         print("8. Search tickets")
+        print("9. Export tickets to CSV")
         print("0. Exit")
 
         choice = input("\nSelect option: ").strip()
@@ -420,6 +455,9 @@ def main_menu() -> None:
             query = input("Search query (ID or keywords): ").strip()
             if query:
                 search_tickets(query)
+
+        elif choice == '9':
+            export_tickets_to_csv()
 
         elif choice == '0':
             print("\n👋 Thank you for using Helpdesk System!")
