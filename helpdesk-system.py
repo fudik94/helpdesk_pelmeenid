@@ -26,6 +26,7 @@ users = {
 
 current_user = None
 
+
 def authenticate_user(username: str, password: str) -> Optional[Dict]:
     """Check whether username/password are valid"""
     username = username.strip().lower()
@@ -188,7 +189,7 @@ def view_ticket_details(ticket_id: int) -> None:
 
     if ticket['comments']:
         print(f"\nComments ({len(ticket['comments'])}):")
-        for i, comment in enumerate(ticket['comments'], 1):
+        for i, comment in enumerate(reversed(ticket['comments']), 1):
             print(f"  {i}. {comment}")
     else:
         print("\nNo comments yet")
@@ -196,22 +197,19 @@ def view_ticket_details(ticket_id: int) -> None:
 
 
 def assign_ticket(ticket_id: int, staff_name: str) -> None:
-    """
-    Assign ticket to support staff
-
-    Args:
-        ticket_id: ID of ticket to assign
-        staff_name: Name of staff member to assign to
-    """
     ticket = find_ticket_by_id(ticket_id)
+
     if not ticket:
         print(f"Error: Ticket #{ticket_id} not found")
+        return
+
+    if not staff_name.strip():
+        print("Error: Staff name cannot be empty")
         return
 
     ticket['assigned_to'] = staff_name
     ticket['comments'].append(f"Ticket assigned to {staff_name}")
 
-    # Auto-change status to In Progress if currently Open
     if ticket['status'] == 'Open':
         ticket['status'] = 'In Progress'
 
@@ -219,14 +217,8 @@ def assign_ticket(ticket_id: int, staff_name: str) -> None:
 
 
 def add_comment(ticket_id: int, comment: str) -> None:
-    """
-    Add comment/update to ticket
-
-    Args:
-        ticket_id: ID of ticket
-        comment: Comment text to add
-    """
     ticket = find_ticket_by_id(ticket_id)
+
     if not ticket:
         print(f"Error: Ticket #{ticket_id} not found")
         return
@@ -235,67 +227,95 @@ def add_comment(ticket_id: int, comment: str) -> None:
         print("Error: Comment cannot be empty")
         return
 
-    ticket['comments'].append(comment)
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    ticket['comments'].append(f"[{timestamp}] {comment}")
+
     print(f"\n✓ Comment added to ticket #{ticket_id}")
 
 
 def close_ticket(ticket_id: int) -> None:
-    """
-    Close a ticket (mark as resolved)
-
-    Args:
-        ticket_id: ID of ticket to close
-    """
     ticket = find_ticket_by_id(ticket_id)
+
     if not ticket:
         print(f"Error: Ticket #{ticket_id} not found")
         return
 
     if ticket['status'] == 'Closed':
-        print(f"Ticket #{ticket_id} is already closed")
+        print(f"Warning: Ticket #{ticket_id} already closed")
         return
 
     ticket['status'] = 'Closed'
-    ticket['comments'].append(f"Ticket closed")
+    ticket['comments'].append("Ticket closed")
+
     print(f"\n✓ Ticket #{ticket_id} closed successfully")
 
-
 def search_tickets(query: str) -> None:
-    """
-    Search tickets by ID or title
-
-    Args:
-        query: Search query (ticket ID number or title keywords)
-    """
     print(f"\n=== Search Results for '{query}' ===")
 
-    # Try to search by ID first
-    if query.isdigit():
+    query_lower = query.lower()
+    now = datetime.datetime.now()
+
+    # --- ID search ---
+    try:
         ticket_id = int(query)
         ticket = find_ticket_by_id(ticket_id)
         if ticket:
             view_ticket_details(ticket_id)
             return
+    except ValueError:
+        pass
 
-    # Search by title (case-insensitive)
-    query_lower = query.lower()
-    matching_tickets = [t for t in tickets if query_lower in t['title'].lower()
-                        or query_lower in t['description'].lower()]
+    matching_tickets = []
 
-    if not matching_tickets:
-        print("No tickets found matching query")
+    # --- Date search ---
+    try:
+        if "last 7 days" in query_lower:
+            cutoff = now - datetime.timedelta(days=7)
+            matching_tickets = [t for t in tickets if t['created_at'] >= cutoff]
+
+        elif "last 30 days" in query_lower:
+            cutoff = now - datetime.timedelta(days=30)
+            matching_tickets = [t for t in tickets if t['created_at'] >= cutoff]
+
+        elif "to" in query_lower:
+            parts = query_lower.split("to")
+            start_date = datetime.datetime.strptime(parts[0].strip(), "%Y-%m-%d")
+            end_date = datetime.datetime.strptime(parts[1].strip(), "%Y-%m-%d")
+
+            matching_tickets = [
+                t for t in tickets
+                if start_date <= t['created_at'] <= end_date
+            ]
+
+        # якщо це date search і нічого не знайдено
+        if ("last" in query_lower or "to" in query_lower) and not matching_tickets:
+            print("No tickets found for given date range")
+            return
+
+    except Exception:
+        print("Error: Invalid date format. Use YYYY-MM-DD to YYYY-MM-DD")
         return
 
-    # Display matching tickets
+    # --- Text search ---
+    if not matching_tickets:
+        matching_tickets = [
+            t for t in tickets
+            if query_lower in t['title'].lower()
+            or query_lower in t['description'].lower()
+        ]
+
+    if not matching_tickets:
+        print("No tickets found")
+        return
+
     print(f"\n{'ID':<5} {'Title':<30} {'Status':<15} {'Assigned To':<20}")
     print("-" * 70)
 
     for ticket in matching_tickets:
-        title_truncated = ticket['title'][:28] + '..' if len(ticket['title']) > 30 else ticket['title']
-        print(f"{ticket['id']:<5} {title_truncated:<30} {ticket['status']:<15} {ticket['assigned_to']:<20}")
+        print(f"{ticket['id']:<5} {ticket['title'][:28]:<30} "
+              f"{ticket['status']:<15} {ticket['assigned_to']:<20}")
 
     print(f"\nFound {len(matching_tickets)} matching tickets")
-
 
 def find_ticket_by_id(ticket_id: int) -> Optional[Dict]:
     """
