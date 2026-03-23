@@ -14,6 +14,7 @@ from typing import List, Dict, Optional
 # Global data structures
 tickets: List[Dict] = []
 ticket_counter = 1
+categories = ['Hardware', 'Software', 'Network', 'Other']
 
 # Starter tickets (demonstrates existing system with some data)
 def initialize_starter_data():
@@ -28,7 +29,8 @@ def initialize_starter_data():
             'status': 'Open',
             'assigned_to': 'Support Team',
             'created_at': datetime.datetime.now() - datetime.timedelta(days=2),
-            'comments': ['Initial report received from user@example.com']
+            'comments': ['Initial report received from user@example.com'],
+            'category': 'Network'
         },
         {
             'id': 2,
@@ -37,7 +39,8 @@ def initialize_starter_data():
             'status': 'In Progress',
             'assigned_to': 'Alice Johnson',
             'created_at': datetime.datetime.now() - datetime.timedelta(days=1),
-            'comments': ['Ticket assigned to Alice', 'Alice: Checked printer, ordered replacement parts']
+            'comments': ['Ticket assigned to Alice', 'Alice: Checked printer, ordered replacement parts'],
+            'category': 'Hardware'
         },
         {
             'id': 3,
@@ -46,7 +49,8 @@ def initialize_starter_data():
             'status': 'Closed',
             'assigned_to': 'Bob Smith',
             'created_at': datetime.datetime.now() - datetime.timedelta(days=3),
-            'comments': ['Bob: Reset mobile sync settings', 'Bob: Issue resolved, user confirmed emails working']
+            'comments': ['Bob: Reset mobile sync settings', 'Bob: Issue resolved, user confirmed emails working'],
+            'category': 'Software'
         }
     ]
     ticket_counter = 4  # Next ticket will be ID 4
@@ -66,6 +70,17 @@ def create_ticket() -> None:
     if not description:
         print("Error: Description cannot be empty")
         return
+    
+    print('\nSelect category:')
+    for i, category in enumerate(categories, 1):
+        print(f"{i}. {category}")
+
+    try:
+        category_choice = int(input('Choose category number: '))
+        category = categories[category_choice - 1]
+    except (ValueError, IndexError):
+        print('Invalid category choice, defaulting to "Other"')
+        category = 'Other'
 
     # Create new ticket
     new_ticket = {
@@ -75,7 +90,8 @@ def create_ticket() -> None:
         'status': 'Open',
         'assigned_to': 'Unassigned',
         'created_at': datetime.datetime.now(),
-        'comments': []
+        'comments': [],
+        'category': category
     }
 
     tickets.append(new_ticket)
@@ -103,15 +119,15 @@ def view_tickets(filter_status: Optional[str] = None) -> None:
         return
 
     # Display tickets in table format
-    print(f"\n{'ID':<5} {'Title':<30} {'Status':<15} {'Assigned To':<20} {'Created':<12}")
+    print(f"\n{'ID':<5} {'Title':<25} {'Category':<12} {'Status':<15} {'Assigned To':<20} {'Created':<12}")
     print("-" * 85)
 
     for ticket in filtered_tickets:
         created_str = ticket['created_at'].strftime('%Y-%m-%d')
         title_truncated = ticket['title'][:28] + '..' if len(ticket['title']) > 30 else ticket['title']
 
-        print(f"{ticket['id']:<5} {title_truncated:<30} {ticket['status']:<15} "
-              f"{ticket['assigned_to']:<20} {created_str:<12}")
+        print(f"{ticket['id']:<5} {title_truncated:<25} {ticket['category']:<12} {ticket['status']:<15} "
+            f"{ticket['assigned_to']:<20} {created_str:<12}")
 
     print(f"\nTotal: {len(filtered_tickets)} tickets")
 
@@ -130,6 +146,7 @@ def view_ticket_details(ticket_id: int) -> None:
     print(f"Assigned To: {ticket['assigned_to']}")
     print(f"Created: {ticket['created_at'].strftime('%Y-%m-%d %H:%M')}")
     print(f"\nDescription:\n{ticket['description']}")
+    print(f"\nCategory: {ticket['category']}")
 
     if ticket['comments']:
         print(f"\nComments ({len(ticket['comments'])}):")
