@@ -16,6 +16,7 @@ import csv
 tickets: List[Dict] = []
 ticket_counter = 1
 categories = ['Hardware', 'Software', 'Network', 'Other']
+staff_members = ['Alice Johnson', 'Bob Smith', 'Charlie Lee', 'Dana White']
 
 # Simple user store for login simulation
 users = {
@@ -87,7 +88,8 @@ def initialize_starter_data():
             'assigned_to': 'Support Team',
             'created_at': datetime.datetime.now() - datetime.timedelta(days=2),
             'comments': ['Initial report received from user@example.com'], 
-            'priority': 'High'
+            'priority': 'High',
+            'category': 'Network'
         },
         {
             'id': 2,
@@ -97,7 +99,8 @@ def initialize_starter_data():
             'assigned_to': 'Alice Johnson',
             'created_at': datetime.datetime.now() - datetime.timedelta(days=1),
             'comments': ['Ticket assigned to Alice', 'Alice: Checked printer, ordered replacement parts'],
-            'priority': 'Medium'
+            'priority': 'Medium',
+            'category': 'Hardware'
         },
         {
             'id': 3,
@@ -107,7 +110,8 @@ def initialize_starter_data():
             'assigned_to': 'Bob Smith',
             'created_at': datetime.datetime.now() - datetime.timedelta(days=3),
             'comments': ['Bob: Reset mobile sync settings', 'Bob: Issue resolved, user confirmed emails working'],
-            'priority': 'Low'
+            'priority': 'Low',
+            'category': 'Software'
         }
     ]
     ticket_counter = 4  # Next ticket will be ID 4
@@ -137,6 +141,18 @@ def create_ticket() -> None:
         print("Invalid priority. Defaulting to Medium.")
         priority = "Medium"
 
+    # Category selection 
+    print("\nSelect category:")
+    for i, cat in enumerate(categories, 1):
+        print(f"{i}. {cat}")
+
+    try:
+        cat_choice = int(input("Choose category (number): "))
+        category = categories[cat_choice - 1]
+    except (ValueError, IndexError):
+        print("Invalid category. Defaulting to 'Other'")
+        category = 'Other'
+
     # Create new ticket
     new_ticket = {
         'id': ticket_counter,
@@ -146,7 +162,8 @@ def create_ticket() -> None:
         'assigned_to': 'Unassigned',
         'created_at': datetime.datetime.now(),
         'comments': [],
-        'priority': priority
+        'priority': priority,
+        'category': category
     }
 
     tickets.append(new_ticket)
@@ -174,7 +191,7 @@ def view_tickets(filter_status: Optional[str] = None) -> None:
         return
 
     # Display tickets in table format
-    print(f"\n{'ID':<5} {'Title':<30} {'Status':<15} {'Priority':<10} {'Assigned To':<20} {'Created':<12}")
+    print(f"\n{'ID':<5} {'Title':<25} {'Category':<12} {'Status':<15} {'Assigned To':<20} {'Created':<12}")
     print("-" * 85)
 
     for ticket in filtered_tickets:
@@ -182,8 +199,8 @@ def view_tickets(filter_status: Optional[str] = None) -> None:
         title_truncated = ticket['title'][:28] + '..' if len(ticket['title']) > 30 else ticket['title']
         priority = ticket.get('priority', 'Medium')
 
-        print(f"{ticket['id']:<5} {title_truncated:<30} {ticket['status']:<15} "
-              f"{priority:<10} {ticket['assigned_to']:<20} {created_str:<12}")
+        print(f"{ticket['id']:<5} {title_truncated:<25} {ticket['category']:<12} {ticket['status']:<15} "
+            f"{ticket['assigned_to']:<20} {created_str:<12}")
 
     print(f"\nTotal: {len(filtered_tickets)} tickets")
 
@@ -223,6 +240,10 @@ def assign_ticket(ticket_id: int, staff_name: str) -> None:
 
     if not staff_name.strip():
         print("Error: Staff name cannot be empty")
+        return
+
+    if staff_name not in users:
+        print("Error: Invalid staff name")
         return
 
     ticket['assigned_to'] = staff_name
@@ -285,8 +306,40 @@ def search_tickets(query: str) -> None:
         if ticket:
             view_ticket_details(ticket_id)
             return
+<<<<<<< HEAD
         else:
             print(f"No ticket found with ID #{ticket_id}")
+=======
+    except ValueError:
+        pass
+
+    matching_tickets = []
+
+    # --- Date search ---
+    try:
+        if "last 7 days" in query_lower:
+            cutoff = now - datetime.timedelta(days=7)
+            matching_tickets = [t for t in tickets if t['created_at'] >= cutoff]
+
+        elif "last 30 days" in query_lower:
+            cutoff = now - datetime.timedelta(days=30)
+            matching_tickets = [t for t in tickets if t['created_at'] >= cutoff]
+
+
+        elif " to " in query_lower:
+            parts = query_lower.split("to")
+            start_date = datetime.datetime.strptime(parts[0].strip(), "%Y-%m-%d")
+            end_date = datetime.datetime.strptime(parts[1].strip(), "%Y-%m-%d")
+
+            matching_tickets = [
+                t for t in tickets
+                if start_date <= t['created_at'] <= end_date
+            ]
+
+        # якщо це date search і нічого не знайдено
+        if ("last" in query_lower or "to" in query_lower) and not matching_tickets:
+            print("No tickets found for given date range")
+>>>>>>> 224b94be8e02545eeb15ae6467dbe67216df422d
             return
 
     # Search by title/description (case-insensitive)
