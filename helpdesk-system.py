@@ -375,46 +375,93 @@ def close_ticket(ticket_id: int) -> None:
     print(f"\n✓ Ticket #{ticket_id} closed successfully")
     save_data()  # Save after closing a ticket
 
-def search_tickets(query: str) -> None:
-    """
-    Search tickets by ID or title/description
+def bulk_close_tickets(ticket_ids: List[int]) -> None:
+    closed_count = 0
 
-    Args:
-        query: Search query (ticket ID number or keywords)
-    """
+    for ticket_id in ticket_ids:
+        ticket = find_ticket_by_id(ticket_id)
+
+        if not ticket:
+            print(f"Ticket #{ticket_id} not found")
+            continue
+
+        if ticket['status'] == 'Closed':
+            print(f"Ticket #{ticket_id} already closed")
+            continue
+
+        ticket['status'] = 'Closed'
+        ticket['comments'].append("Ticket closed (bulk)")
+        closed_count += 1
+
+    print(f"\n✓ {closed_count} tickets closed successfully")
+
+def search_tickets(query: str) -> None:
     query = query.strip()
     print(f"\n=== Search Results for '{query}' ===")
 
-    # Search by ticket ID
+    query_lower = query.lower()
+    now = datetime.datetime.now()
+
+    # --- ID search ---
     if query.isdigit():
         ticket_id = int(query)
         ticket = find_ticket_by_id(ticket_id)
 
         if ticket:
             view_ticket_details(ticket_id)
-            return
         else:
             print(f"No ticket found with ID #{ticket_id}")
+        return
+
+    matching_tickets = []
+
+    # --- Date search ---
+    try:
+        if "last 7 days" in query_lower:
+            cutoff = now - datetime.timedelta(days=7)
+            matching_tickets = [t for t in tickets if t['created_at'] >= cutoff]
+
+        elif "last 30 days" in query_lower:
+            cutoff = now - datetime.timedelta(days=30)
+            matching_tickets = [t for t in tickets if t['created_at'] >= cutoff]
+
+        elif " to " in query_lower:
+            parts = query_lower.split(" to ")
+            start_date = datetime.datetime.strptime(parts[0].strip(), "%Y-%m-%d")
+            end_date = datetime.datetime.strptime(parts[1].strip(), "%Y-%m-%d")
+
+            matching_tickets = [
+                t for t in tickets
+                if start_date <= t['created_at'] <= end_date
+            ]
+
+        # якщо це date search і нічого не знайдено
+        if ("last" in query_lower or " to " in query_lower) and not matching_tickets:
+            print("No tickets found for given date range")
             return
 
-    # Search by title/description (case-insensitive)
-    query_lower = query.lower()
-    matching_tickets = [
-        t for t in tickets
-        if query_lower in t['title'].lower()
-        or query_lower in t['description'].lower()
-    ]
+    except Exception:
+        print("Error: Invalid date format. Use YYYY-MM-DD to YYYY-MM-DD")
+        return
+
+    # --- Text search ---
+    if not matching_tickets:
+        matching_tickets = [
+            t for t in tickets
+            if query_lower in t['title'].lower()
+            or query_lower in t['description'].lower()
+        ]
 
     if not matching_tickets:
-        print("No tickets found matching query")
+        print("No tickets found")
         return
 
     print(f"\n{'ID':<5} {'Title':<30} {'Status':<15} {'Assigned To':<20}")
     print("-" * 70)
 
     for ticket in matching_tickets:
-        title_truncated = ticket['title'][:28] + '..' if len(ticket['title']) > 30 else ticket['title']
-        print(f"{ticket['id']:<5} {title_truncated:<30} {ticket['status']:<15} {ticket['assigned_to']:<20}")
+        print(f"{ticket['id']:<5} {ticket['title'][:28]:<30} "
+              f"{ticket['status']:<15} {ticket['assigned_to']:<20}")
 
     print(f"\nFound {len(matching_tickets)} matching tickets")
 
@@ -550,6 +597,15 @@ def main_menu() -> None:
 
         elif choice == '9':
             export_tickets_to_csv()
+
+        elif choice == '10':
+            ids_input = input("Enter ticket IDs separated by comma (e.g. 1,2,3): ")
+
+            try:
+                ticket_ids = [int(x.strip()) for x in ids_input.split(",")]
+                bulk_close_tickets(ticket_ids)
+            except ValueError:
+                print("Error: Invalid input format")
 
         elif choice == '0':
             print("\n👋 Thank you for using Helpdesk System!")
