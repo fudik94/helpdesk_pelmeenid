@@ -91,7 +91,9 @@ def initialize_starter_data():
             'created_at': datetime.datetime.now() - datetime.timedelta(days=2),
             'comments': ['Initial report received from user@example.com'], 
             'priority': 'High',
-            'category': 'Network'
+            'category': 'Network',
+            'escalation_level': 1,
+            'escalation_reason': ''
         },
         {
             'id': 2,
@@ -102,7 +104,9 @@ def initialize_starter_data():
             'created_at': datetime.datetime.now() - datetime.timedelta(days=1),
             'comments': ['Ticket assigned to Alice', 'Alice: Checked printer, ordered replacement parts'],
             'priority': 'Medium',
-            'category': 'Hardware'
+            'category': 'Hardware',
+            'escalation_level': 1,
+            'escalation_reason': ''
         },
         {
             'id': 3,
@@ -113,7 +117,9 @@ def initialize_starter_data():
             'created_at': datetime.datetime.now() - datetime.timedelta(days=3),
             'comments': ['Bob: Reset mobile sync settings', 'Bob: Issue resolved, user confirmed emails working'],
             'priority': 'Low',
-            'category': 'Software'
+            'category': 'Software',
+            'escalation_level': 1,
+            'escalation_reason': ''
         }
     ]
     ticket_counter = 4  # Next ticket will be ID 4
@@ -211,7 +217,9 @@ def create_ticket() -> None:
         'created_at': datetime.datetime.now(),
         'comments': [],
         'priority': priority,
-        'category': category
+        'category': category, 
+        'escalation_level': 1,
+        'escalation_reason': ''
     }
 
     tickets.append(new_ticket)
@@ -219,6 +227,45 @@ def create_ticket() -> None:
     save_data()  # Save after creating a new ticket
     ticket_counter += 1
 
+def escalate_ticket(ticket_id: int) -> None:
+    ticket = find_ticket_by_id(ticket_id)
+    if not ticket:
+        print(f"Error: Ticket #{ticket_id} not found")
+        return
+
+    reason = input("Enter escalation reason: ").strip()
+    if not reason:
+        print("Error: Reason cannot be empty")
+        return
+
+    if ticket['escalation_level'] < 3:
+        ticket['escalation_level'] += 1
+    else:
+        print("Ticket already at highest escalation level")
+        return
+
+    ticket['escalation_reason'] = reason
+    ticket['comments'].append(f"Escalated: {reason}")
+
+    save_data()
+
+    print(f"\n⚠ Ticket #{ticket_id} escalated to level {ticket['escalation_level']}")
+
+def de_escalate_ticket(ticket_id: int) -> None:
+    ticket = find_ticket_by_id(ticket_id)
+    if not ticket:
+        print(f"Error: Ticket #{ticket_id} not found")
+        return
+
+    if ticket['escalation_level'] > 1:
+        ticket['escalation_level'] -= 1
+        ticket['comments'].append("De-escalated")
+
+        save_data()
+
+        print(f"\n✓ Ticket #{ticket_id} de-escalated to level {ticket['escalation_level']}")
+    else:
+        print("Ticket is already at normal level")
 
 def view_tickets(filter_status: Optional[str] = None) -> None:
     """
@@ -256,17 +303,19 @@ def view_tickets(filter_status: Optional[str] = None) -> None:
             break
 
         print(
-            f"\n{'ID':<5} {'Title':<25} {'Category':<12} {'Status':<15} {'Assigned To':<20} {'Created':<12}"
+            f"\n{'ID':<5} {'Title':<25} {'Category':<12} {'Status':<15} {'Priority':<10} {'Esc':<5} {'Assigned To':<20} {'Created':<12}"
         )
-        print("-" * 85)
+        print("-" * 100)
 
         for ticket in page:
             created_str = ticket['created_at'].strftime('%Y-%m-%d')
             title_truncated = ticket['title'][:28] + '..' if len(ticket['title']) > 30 else ticket['title']
+            priority = ticket.get('priority', 'Medium')
+            escalation = ticket.get('escalation_level', 1)
 
             print(
                 f"{ticket['id']:<5} {title_truncated:<25} {ticket['category']:<12} {ticket['status']:<15} "
-                f"{ticket['assigned_to']:<20} {created_str:<12}"
+                f"{priority:<10} {escalation:<5} {ticket['assigned_to']:<20} {created_str:<12}"
             )
 
         shown_total += len(page)
@@ -298,6 +347,8 @@ def view_ticket_details(ticket_id: int) -> None:
     print(f"Created: {ticket['created_at'].strftime('%Y-%m-%d %H:%M')}")
     print(f"\nDescription:\n{ticket['description']}")
     print(f"\nCategory: {ticket.get('category', 'Other')}")
+    print(f"Escalation Level: {ticket.get('escalation_level', 1)}")
+    print(f"Escalation Reason: {ticket.get('escalation_reason', 'None') or 'None'}")
 
     if ticket['comments']:
         print(f"\nComments ({len(ticket['comments'])}):")
@@ -534,6 +585,8 @@ def main_menu() -> None:
         print("7. Close ticket")
         print("8. Search tickets")
         print("9. Export tickets to CSV")
+        print("10. Escalate ticket")
+        print("11. De-escalate ticket")
         print("0. Exit")
 
         choice = input("\nSelect option: ").strip()
@@ -599,13 +652,18 @@ def main_menu() -> None:
             export_tickets_to_csv()
 
         elif choice == '10':
-            ids_input = input("Enter ticket IDs separated by comma (e.g. 1,2,3): ")
-
             try:
-                ticket_ids = [int(x.strip()) for x in ids_input.split(",")]
-                bulk_close_tickets(ticket_ids)
+                ticket_id = int(input("Enter ticket ID: "))
+                escalate_ticket(ticket_id)
             except ValueError:
-                print("Error: Invalid input format")
+                print("Error: Invalid ticket ID")
+
+        elif choice == '11':
+            try:
+                ticket_id = int(input("Enter ticket ID: "))
+                de_escalate_ticket(ticket_id)
+            except ValueError:
+                print("Error: Invalid ticket ID")
 
         elif choice == '0':
             print("\n👋 Thank you for using Helpdesk System!")
